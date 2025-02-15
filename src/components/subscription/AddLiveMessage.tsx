@@ -9,20 +9,22 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useUserStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/auth";
 import { MessageSquarePlus } from "lucide-react";
 
 export function AddLiveMessage() {
   const [message, setMessage] = useState("");
-  const { addMessage } = useUserStore();
+  const { addMessage } = useStore();
+  const { user } = useAuthStore();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim()) {
       addMessage({
         text: message,
-        userId: "current-user", // In a real app, get from auth
-        username: "CurrentUser", // In a real app, get from auth
+        userId: user?.id || "",
+        username: user?.name || "",
       });
       setMessage("");
     }

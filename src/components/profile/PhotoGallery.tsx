@@ -1,103 +1,185 @@
-import React, { useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import React, { useState, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Image, Plus } from "lucide-react";
-
-interface Photo {
-  id: string;
-  url: string;
-  caption: string;
-}
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/auth";
+import { Image, Plus, X, Upload } from "lucide-react";
 
 interface PhotoGalleryProps {
-  photos?: Photo[];
-  onAddPhoto?: () => void;
+  userId?: string;
 }
 
-const defaultPhotos: Photo[] = [
-  {
-    id: "1",
-    url: "https://images.unsplash.com/photo-1682687220742-aba13b6e50ba",
-    caption: "Beautiful sunset",
-  },
-  {
-    id: "2",
-    url: "https://images.unsplash.com/photo-1682687221038-404670f09ef1",
-    caption: "Mountain landscape",
-  },
-  {
-    id: "3",
-    url: "https://images.unsplash.com/photo-1682687220063-4742bd7fd538",
-    caption: "City lights",
-  },
-];
+const PhotoGallery = ({ userId }: PhotoGalleryProps) => {
+  const { profiles, addPhoto, removePhoto } = useStore();
+  const currentUser = useAuthStore((state) => state.user);
+  const [isAddingPhoto, setIsAddingPhoto] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [newPhoto, setNewPhoto] = useState({ url: "", caption: "" });
 
-const PhotoGallery = ({
-  photos = defaultPhotos,
-  onAddPhoto = () => {},
-}: PhotoGalleryProps) => {
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const userProfile = profiles.find(
+    (p) => p.userId === (userId || currentUser?.id),
+  ) || {
+    id: userId || currentUser?.id || "",
+    photos: [],
+  };
+
+  const isOwnProfile = userId === currentUser?.id || !userId;
+
+  const handleAddPhoto = () => {
+    if (!userProfile || !newPhoto.url.trim()) return;
+    addPhoto(userProfile.id, {
+      url: newPhoto.url,
+      caption: newPhoto.caption,
+    });
+    setNewPhoto({ url: "", caption: "" });
+    setIsAddingPhoto(false);
+  };
+
+  const handleRemovePhoto = (photoId: string) => {
+    if (!userProfile) return;
+    removePhoto(userProfile.id, photoId);
+  };
+
+  const handleFileUpload = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      setNewPhoto((prev) => ({ ...prev, url }));
+    },
+    [],
+  );
 
   return (
-    <Card className="p-6 bg-white dark:bg-gray-800">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">Photo Gallery</h2>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={onAddPhoto}
-          className="rounded-full"
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <ScrollArea className="h-[400px] w-full pr-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {photos.map((photo) => (
-            <Dialog key={photo.id}>
-              <DialogTrigger asChild>
-                <div
-                  className="relative aspect-square cursor-pointer overflow-hidden rounded-lg"
-                  onClick={() => setSelectedPhoto(photo)}
+    <Card className="w-full bg-white">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Photo Gallery</CardTitle>
+        {isOwnProfile && (
+          <Dialog open={isAddingPhoto} onOpenChange={setIsAddingPhoto}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsAddingPhoto(true)}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Photo</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Photo URL</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newPhoto.url}
+                      onChange={(e) =>
+                        setNewPhoto((prev) => ({
+                          ...prev,
+                          url: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter image URL or upload"
+                    />
+                    <Label
+                      htmlFor="photo-upload"
+                      className="cursor-pointer bg-secondary hover:bg-secondary/80 text-secondary-foreground px-4 py-2 rounded-md flex items-center gap-2"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload
+                    </Label>
+                    <Input
+                      id="photo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Caption</Label>
+                  <Input
+                    value={newPhoto.caption}
+                    onChange={(e) =>
+                      setNewPhoto((prev) => ({
+                        ...prev,
+                        caption: e.target.value,
+                      }))
+                    }
+                    placeholder="Add a caption"
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={handleAddPhoto}
+                  disabled={!newPhoto.url.trim()}
                 >
-                  <img
-                    src={photo.url}
-                    alt={photo.caption}
-                    className="object-cover w-full h-full transition-transform hover:scale-105"
-                  />
-                </div>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl">
-                <div className="relative aspect-video">
-                  <img
-                    src={photo.url}
-                    alt={photo.caption}
-                    className="object-contain w-full h-full"
-                  />
-                </div>
-                <p className="text-center mt-2">{photo.caption}</p>
-              </DialogContent>
-            </Dialog>
-          ))}
-          {photos.length === 0 && (
-            <div className="col-span-full flex flex-col items-center justify-center p-8 text-center">
-              <Image className="h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-gray-500">No photos yet</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onAddPhoto}
-                className="mt-2"
+                  Add Photo
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className="h-[400px]">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {userProfile.photos.map((photo) => (
+              <div
+                key={photo.id}
+                className="group relative aspect-square rounded-md overflow-hidden"
               >
-                Add your first photo
-              </Button>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+                <img
+                  src={photo.url}
+                  alt={photo.caption}
+                  className="object-cover w-full h-full cursor-pointer transition-transform hover:scale-105"
+                  onClick={() => setSelectedPhoto(photo.url)}
+                />
+                {isOwnProfile && (
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => handleRemovePhoto(photo.id)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+                {photo.caption && (
+                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50 text-white text-sm">
+                    {photo.caption}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </CardContent>
+
+      <Dialog
+        open={!!selectedPhoto}
+        onOpenChange={() => setSelectedPhoto(null)}
+      >
+        <DialogContent className="max-w-3xl">
+          <div className="aspect-video relative">
+            <img
+              src={selectedPhoto || ""}
+              alt="Full size"
+              className="object-contain w-full h-full"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

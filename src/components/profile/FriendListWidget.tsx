@@ -3,13 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Clock, Activity } from "lucide-react";
+import { Clock, Activity, MessageSquare } from "lucide-react";
 
 interface FriendActivity {
   id: string;
@@ -18,15 +19,18 @@ interface FriendActivity {
   status: "online" | "offline" | "away";
   lastActivity: string;
   recentAction: string;
+  userId: string;
 }
 
 interface FriendListWidgetProps {
   friends?: FriendActivity[];
+  onStartChat?: (userId: string) => void;
 }
 
 const defaultFriends: FriendActivity[] = [
   {
     id: "1",
+    userId: "user1",
     name: "Alice Johnson",
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=alice",
     status: "online",
@@ -35,6 +39,7 @@ const defaultFriends: FriendActivity[] = [
   },
   {
     id: "2",
+    userId: "user2",
     name: "Bob Smith",
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=bob",
     status: "away",
@@ -43,6 +48,7 @@ const defaultFriends: FriendActivity[] = [
   },
   {
     id: "3",
+    userId: "user3",
     name: "Carol White",
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=carol",
     status: "offline",
@@ -53,6 +59,7 @@ const defaultFriends: FriendActivity[] = [
 
 const FriendListWidget = ({
   friends = defaultFriends,
+  onStartChat,
 }: FriendListWidgetProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -91,28 +98,40 @@ const FriendListWidget = ({
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold">{friend.name}</h4>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Badge
-                            variant="secondary"
-                            className="flex items-center gap-1 text-xs"
-                          >
-                            <Clock className="h-3 w-3" />
-                            {friend.lastActivity}
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Last active {friend.lastActivity}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <div>
+                      <h4 className="text-sm font-semibold">{friend.name}</h4>
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                        <Activity className="h-3 w-3" />
+                        {friend.recentAction}
+                      </div>
+                    </div>
+                    {onStartChat && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onStartChat(friend.userId)}
+                        className="h-8 w-8"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                    <Activity className="h-3 w-3" />
-                    {friend.recentAction}
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge
+                          variant="secondary"
+                          className="flex items-center gap-1 text-xs mt-2"
+                        >
+                          <Clock className="h-3 w-3" />
+                          {friend.lastActivity}
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Last active {friend.lastActivity}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             ))}

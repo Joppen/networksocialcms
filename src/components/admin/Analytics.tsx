@@ -1,30 +1,33 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { Users, MessageSquare, Calendar, Activity } from "lucide-react";
+import { useStore } from "@/lib/store";
 
 const Analytics = () => {
+  const { users, blogPosts: posts, events, groups } = useStore();
+
   const stats = [
     {
       title: "Total Users",
-      value: "1,234",
+      value: users.length.toString(),
       change: "+12%",
       icon: Users,
     },
     {
       title: "Active Posts",
-      value: "856",
+      value: posts.length.toString(),
       change: "+23%",
       icon: MessageSquare,
     },
     {
       title: "Events",
-      value: "45",
+      value: events.length.toString(),
       change: "+8%",
       icon: Calendar,
     },
     {
-      title: "Daily Active Users",
-      value: "456",
+      title: "Groups",
+      value: groups.length.toString(),
       change: "+15%",
       icon: Activity,
     },

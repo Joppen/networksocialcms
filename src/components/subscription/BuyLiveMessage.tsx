@@ -8,11 +8,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useUserStore } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import { Sparkles } from "lucide-react";
 
 export function BuyLiveMessage() {
-  const { setIsPremium } = useUserStore();
+  const { setIsPremium } = useStore();
 
   const handleSubscribe = () => {
     // In a real app, this would integrate with a payment processor

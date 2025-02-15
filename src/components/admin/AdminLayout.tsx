@@ -11,7 +11,7 @@ const AdminLayout = () => {
   return (
     <div className="min-h-screen bg-[#2A2D43] text-white">
       <Navigation />
-      <div className="p-6 pt-20 max-w-7xl mx-auto">
+      <div className="p-6 pt-28 max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
 
         <Tabs defaultValue="users" className="space-y-4">

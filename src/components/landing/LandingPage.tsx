@@ -2,25 +2,10 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link } from "react-router-dom";
+import { useStore } from "@/lib/store";
 
 const LandingPage = () => {
-  const newsUpdates = [
-    {
-      id: 1,
-      title: "Welcome to NovaNet!",
-      content:
-        "A new social platform that combines modern features with retro aesthetics.",
-      date: "March 21, 2024",
-      author: "Admin",
-    },
-    {
-      id: 2,
-      title: "New Features Coming Soon",
-      content: "Stay tuned for exciting updates including groups and events!",
-      date: "March 20, 2024",
-      author: "Admin",
-    },
-  ];
+  const { latestUpdates } = useStore();
 
   return (
     <div className="min-h-screen bg-[#2A2D43] text-white">
@@ -38,7 +23,7 @@ const LandingPage = () => {
             <Button asChild>
               <Link to="/register">Get Started</Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button asChild>
               <Link to="/login">Sign In</Link>
             </Button>
           </div>
@@ -49,15 +34,16 @@ const LandingPage = () => {
       <div className="container mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold mb-8">Latest Updates</h2>
         <div className="grid md:grid-cols-2 gap-6">
-          {newsUpdates.map((news) => (
+          {latestUpdates.map((update) => (
             <Card
-              key={news.id}
+              key={update.id}
               className="p-6 bg-white/10 backdrop-blur-lg border-none"
             >
-              <h3 className="text-xl font-bold mb-2">{news.title}</h3>
-              <p className="text-gray-300 mb-4">{news.content}</p>
+              <h3 className="text-xl font-bold mb-2">{update.title}</h3>
+              <p className="text-gray-300 mb-4">{update.content}</p>
               <div className="text-sm text-gray-400">
-                <span>{news.date}</span> • <span>{news.author}</span>
+                {update.date} • {update.author}{" "}
+                {update.type && `/ ${update.type}`}
               </div>
             </Card>
           ))}

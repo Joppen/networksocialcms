@@ -1,12 +1,18 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { EmojiPicker } from "@/components/ui/emoji-picker";
+import { useStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
+import { toast } from "@/components/ui/use-toast";
 import {
   MessageCircle,
   Send,
-  Image,
+  Image as ImageIcon,
   Smile,
   X,
   Minimize2,
@@ -14,57 +20,109 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface Message {
-  id: string;
-  sender: string;
-  content: string;
-  timestamp: string;
-}
-
 interface ChatWidgetProps {
+  chatId: string;
   isOpen?: boolean;
+  isMinimized?: boolean;
   onClose?: () => void;
-  messages?: Message[];
-  currentUser?: string;
+  onMinimize?: () => void;
+  style?: React.CSSProperties;
 }
 
 const ChatWidget = ({
+  chatId,
   isOpen = true,
+  isMinimized = false,
   onClose = () => {},
-  messages: initialMessages = [
-    {
-      id: "1",
-      sender: "John Doe",
-      content: "Hey there! How are you?",
-      timestamp: "2:30 PM",
-    },
-    {
-      id: "2",
-      sender: "Current User",
-      content: "I'm doing great, thanks for asking!",
-      timestamp: "2:31 PM",
-    },
-  ],
-  currentUser = "Current User",
+  onMinimize = () => {},
+  style = {},
 }: ChatWidgetProps) => {
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const {
+    chats = [],
+    chatMessages = [],
+    sendChatMessage,
+    profiles = [],
+  } = useStore();
+  const currentUser = useAuthStore((state) => state.user);
   const [newMessage, setNewMessage] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const message: Message = {
-        id: Date.now().toString(),
-        sender: currentUser,
-        content: newMessage,
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-      setMessages([...messages, message]);
-      setNewMessage("");
+  const chat = chats.find((c) => c.id === chatId);
+  const messages = (chatMessages || []).filter((m) => m.chatId === chatId);
+
+  const otherParticipantId = chat?.participants.find(
+    (id) => id !== currentUser?.id,
+  );
+  const otherParticipant = profiles.find(
+    (p) => p.userId === otherParticipantId,
+  );
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !currentUser) return;
+    try {
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .insert({
+          chat_id: chatId,
+          sender_id: currentUser.id,
+          content: newMessage,
+          type: "text",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      sendChatMessage({
+        id: data.id,
+        chatId,
+        senderId: currentUser.id,
+        content: newMessage,
+        timestamp: new Date().toISOString(),
+        type: "text",
+      });
+      setNewMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+
+    // In a real app, upload to a server first
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      sendChatMessage({
+        chatId,
+        senderId: currentUser.id,
+        content: reader.result as string,
+        timestamp: new Date().toISOString(),
+        type: "image",
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    if (!currentUser) return;
+    sendChatMessage({
+      chatId,
+      senderId: currentUser.id,
+      content: emoji,
+      timestamp: new Date().toISOString(),
+      type: "emoji",
+    });
+    setShowEmojiPicker(false);
   };
 
   return (
@@ -74,20 +132,26 @@ const ChatWidget = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="fixed bottom-4 right-4 z-50"
+          className="fixed bottom-4 z-50"
+          style={style}
         >
           <Card className="w-[360px] bg-white shadow-lg">
             {/* Chat Header */}
             <div className="flex items-center justify-between p-4 border-b bg-primary text-primary-foreground">
               <div className="flex items-center gap-2">
                 <MessageCircle size={20} />
-                <span className="font-semibold">Chat</span>
+                <Link
+                  to={`/profile/${otherParticipant?.userId}`}
+                  className="font-semibold hover:underline"
+                >
+                  {otherParticipant?.name || "Chat"}
+                </Link>
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setIsMinimized(!isMinimized)}
+                  onClick={onMinimize}
                   className="text-primary-foreground hover:text-primary-foreground/80"
                 >
                   {isMinimized ? (
@@ -116,20 +180,40 @@ const ChatWidget = ({
                   transition={{ duration: 0.2 }}
                 >
                   {/* Messages Area */}
-                  <ScrollArea className="h-[400px] p-4">
+                  <ScrollArea className="h-[400px] p-4" ref={scrollRef}>
                     <div className="flex flex-col gap-4">
                       {messages.map((message) => (
                         <div
                           key={message.id}
-                          className={`flex flex-col ${message.sender === currentUser ? "items-end" : "items-start"}`}
+                          className={`flex flex-col ${message.senderId === currentUser?.id ? "items-end" : "items-start"}`}
                         >
                           <div
-                            className={`max-w-[80%] rounded-lg p-3 ${message.sender === currentUser ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                            className={`max-w-[80%] rounded-lg p-3 ${message.senderId === currentUser?.id ? "bg-primary text-primary-foreground" : "bg-muted"}`}
                           >
-                            <p className="text-sm">{message.content}</p>
+                            {message.type === "text" && (
+                              <p className="text-sm">{message.content}</p>
+                            )}
+                            {message.type === "image" && (
+                              <img
+                                src={message.content}
+                                alt="Shared image"
+                                className="max-w-full rounded"
+                              />
+                            )}
+                            {message.type === "emoji" && (
+                              <span className="text-2xl">
+                                {message.content}
+                              </span>
+                            )}
                           </div>
                           <span className="text-xs text-muted-foreground mt-1">
-                            {message.timestamp}
+                            {new Date(message.timestamp).toLocaleTimeString(
+                              [],
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              },
+                            )}
                           </span>
                         </div>
                       ))}
@@ -148,16 +232,36 @@ const ChatWidget = ({
                         }
                         className="flex-1"
                       />
-                      <Button variant="ghost" size="icon">
-                        <Image size={20} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={handleImageUpload}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <ImageIcon size={20} />
                       </Button>
-                      <Button variant="ghost" size="icon">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      >
                         <Smile size={20} />
                       </Button>
                       <Button onClick={handleSendMessage}>
                         <Send size={20} />
                       </Button>
                     </div>
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-full mb-2 right-0">
+                        <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}

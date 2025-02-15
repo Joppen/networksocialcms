@@ -1,4 +1,5 @@
 import React from "react";
+import { useStore } from "@/lib/store";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 const SiteSettings = () => {
+  const { settings, updateSettings } = useStore();
+
+  const handleSettingChange = (path: string[], value: any) => {
+    const updates = path.reduceRight(
+      (acc, key, i) => ({ [key]: i === path.length - 1 ? value : acc }),
+      value,
+    );
+    updateSettings(updates);
+  };
   return (
     <div className="space-y-6">
       <div className="grid gap-6">
@@ -14,11 +24,21 @@ const SiteSettings = () => {
           <Card className="p-4 space-y-4">
             <div className="space-y-2">
               <Label>Site Name</Label>
-              <Input defaultValue="NovaNet" />
+              <Input
+                value={settings.siteName}
+                onChange={(e) =>
+                  handleSettingChange(["siteName"], e.target.value)
+                }
+              />
             </div>
             <div className="space-y-2">
               <Label>Site Description</Label>
-              <Input defaultValue="A modern social platform with retro flair" />
+              <Input
+                value={settings.siteDescription}
+                onChange={(e) =>
+                  handleSettingChange(["siteDescription"], e.target.value)
+                }
+              />
             </div>
           </Card>
         </div>
@@ -33,7 +53,12 @@ const SiteSettings = () => {
                   Allow users to post live messages
                 </div>
               </div>
-              <Switch defaultChecked />
+              <Switch
+                checked={settings.features.liveMessages}
+                onCheckedChange={(checked) =>
+                  handleSettingChange(["features", "liveMessages"], checked)
+                }
+              />
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -42,7 +67,12 @@ const SiteSettings = () => {
                   Allow non-registered users to post
                 </div>
               </div>
-              <Switch />
+              <Switch
+                checked={settings.features.guestPosts}
+                onCheckedChange={(checked) =>
+                  handleSettingChange(["features", "guestPosts"], checked)
+                }
+              />
             </div>
           </Card>
         </div>
